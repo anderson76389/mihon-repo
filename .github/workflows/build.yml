@@ -42,7 +42,6 @@ jobs:
             -keypass android \
             -dname "CN=MihonExtension,OU=Dev,O=Repo,L=Paris,ST=IDF,C=FR"
 
-          # Extraction dynamique du hash SHA-256 réel (64 caractères hexadécimaux)
           FINGERPRINT=$(keytool -list -v -keystore signingkey.jks -alias androiddebugkey -storepass android | grep -i "SHA256:" | head -n 1 | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
           echo "SHA256_FP=$FINGERPRINT" >> $GITHUB_ENV
 
@@ -54,13 +53,12 @@ jobs:
         run: |
           gradle :app:assembleRelease --stacktrace
 
-      - name: Prepare Repo Directory & Generate Schemas
+      - name: Prepare Repo Directory & Metadata
         run: |
           mkdir -p repo/apk
           cp app/build/outputs/apk/release/*.apk repo/apk/frenchsources.apk
           touch repo/.nojekyll
 
-          # 1. repo.json conforme Mihon moderne (avec encapsulation "meta" et hash SHA-256 valide)
           cat << EOF > repo/repo.json
           {
             "meta": {
@@ -71,9 +69,8 @@ jobs:
           }
           EOF
 
-          # 2. index.min.json
           cat << 'EOF' > repo/index.min.json
-          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":"1849204817491","baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":"2958102948192","baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":"7827492817491","baseUrl":"https://www.scan-manga.com"}]}]
+          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":1849204817491,"baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":2958102948192,"baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":7827492817491,"baseUrl":"https://www.scan-manga.com"}]}]
           EOF
 
       - name: Deploy to GitHub Pages
