@@ -1,0 +1,95 @@
+name: Build and Deploy Repo
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Extension & Repo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
+
+      - name: Generate Keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore signingkey.jks \
+            -alias androiddebugkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=MihonExtension,OU=Dev,O=Repo,L=Paris,ST=IDF,C=FR"
+
+      - name: Build APK
+        env:
+          KEYSTORE_PATH: ../signingkey.jks
+          KEY_ALIAS: androiddebugkey
+          KEY_PASSWORD: android
+        run: |
+          gradle :app:assembleRelease --stacktrace
+
+      - name: Prepare Repo Directory & Generate index.min.json
+        run: |
+          mkdir -p repo/apk
+          cp app/build/outputs/apk/release/*.apk repo/apk/scanmanga.apk
+
+          python3 -c '
+          import json, hashlib
+
+          apk_path = "repo/apk/scanmanga.apk"
+          with open(apk_path, "rb") as f:
+              apk_hash = hashlib.sha256(f.read()).hexdigest()
+
+          repo_data = [
+              {
+                  "name": "Scan-Manga",
+                  "pkg": "eu.kanade.tachiyomi.extension.fr.scanmanga",
+                  "apk": "scanmanga.apk",
+                  "lang": "fr",
+                  "code": 1,
+                  "version": "1.4.1",
+                  "nsfw": 0,
+                  "hasReadme": 0,
+                  "hasChangelog": 0,
+                  "sources": [
+                      {
+                          "name": "Scan-Manga",
+                          "lang": "fr",
+                          "id": "7827492817491",
+                          "baseUrl": "https://www.scan-manga.com"
+                      }
+                  ]
+              }
+          ]
+
+          with open("repo/index.min.json", "w", encoding="utf-8") as f:
+              json.dump(repo_data, f, ensure_ascii=False, separators=(",", ":"))
+          '
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: repo
+          publish_dir: repo
