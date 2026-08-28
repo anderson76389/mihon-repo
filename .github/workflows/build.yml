@@ -29,7 +29,8 @@ jobs:
         with:
           gradle-version: 8.7
 
-      - name: Generate Keystore
+      - name: Generate Keystore & Extract Fingerprint
+        id: keystore
         run: |
           keytool -genkeypair -v \
             -keystore signingkey.jks \
@@ -41,6 +42,10 @@ jobs:
             -keypass android \
             -dname "CN=MihonExtension,OU=Dev,O=Repo,L=Paris,ST=IDF,C=FR"
 
+          # Extraction dynamique du hash SHA-256 réel (64 caractères hexadécimaux)
+          FINGERPRINT=$(keytool -list -v -keystore signingkey.jks -alias androiddebugkey -storepass android | grep -i "SHA256:" | head -n 1 | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          echo "SHA256_FP=$FINGERPRINT" >> $GITHUB_ENV
+
       - name: Build APK
         env:
           KEYSTORE_PATH: ../signingkey.jks
@@ -49,56 +54,26 @@ jobs:
         run: |
           gradle :app:assembleRelease --stacktrace
 
-      - name: Prepare Repo Directory & Metadata
+      - name: Prepare Repo Directory & Generate Schemas
         run: |
           mkdir -p repo/apk
           cp app/build/outputs/apk/release/*.apk repo/apk/frenchsources.apk
           touch repo/.nojekyll
 
-          # 1. Génération de repo.json (Requis par Mihon moderne)
-          cat << 'EOF' > repo/repo.json
+          # 1. repo.json conforme Mihon moderne (avec encapsulation "meta" et hash SHA-256 valide)
+          cat << EOF > repo/repo.json
           {
-            "name": "Mes Sources FR",
-            "website": "https://github.com/anderson76389/mihon-repo",
-            "signingKeyFingerprint": "androiddebugkey"
+            "meta": {
+              "name": "Sources Françaises",
+              "website": "https://github.com/anderson76389/mihon-repo",
+              "signingKeyFingerprint": "${{ env.SHA256_FP }}"
+            }
           }
           EOF
 
-          # 2. Génération de index.min.json (Catalogue des sources)
+          # 2. index.min.json
           cat << 'EOF' > repo/index.min.json
-          [
-            {
-              "name": "Sources Françaises",
-              "pkg": "eu.kanade.tachiyomi.extension.fr.frenchsources",
-              "apk": "frenchsources.apk",
-              "lang": "fr",
-              "code": 1,
-              "version": "1.0.0",
-              "nsfw": 0,
-              "hasReadme": 0,
-              "hasChangelog": 0,
-              "sources": [
-                {
-                  "name": "Mangas Origines",
-                  "lang": "fr",
-                  "id": "1849204817491",
-                  "baseUrl": "https://mangas-origines.fr"
-                },
-                {
-                  "name": "Sushi-Scan",
-                  "lang": "fr",
-                  "id": "2958102948192",
-                  "baseUrl": "https://sushiscan.net"
-                },
-                {
-                  "name": "Scan-Manga",
-                  "lang": "fr",
-                  "id": "7827492817491",
-                  "baseUrl": "https://www.scan-manga.com"
-                }
-              ]
-            }
-          ]
+          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":"1849204817491","baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":"2958102948192","baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":"7827492817491","baseUrl":"https://www.scan-manga.com"}]}]
           EOF
 
       - name: Deploy to GitHub Pages
