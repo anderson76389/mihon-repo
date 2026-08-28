@@ -13,8 +13,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
-// --- INTERFACES ET MODÈLES DU MOTEUR MIHON ---
-
 interface Source {
     val id: Long get() = (name + lang).hashCode().toLong() and 0x7fffffffffffffffL
     val name: String
@@ -99,7 +97,6 @@ class SChapterImpl : SChapter {
 }
 
 class Page(val index: Int, val url: String = "", var imageUrl: String? = null)
-
 class FilterList(val filters: List<Any> = emptyList())
 
 abstract class ParsedHttpSource : Source {
@@ -107,8 +104,8 @@ abstract class ParsedHttpSource : Source {
     abstract val supportsLatest: Boolean
 
     open val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
     open val headers: Headers get() = headersBuilder().build()
@@ -136,8 +133,6 @@ abstract class ParsedHttpSource : Source {
     abstract fun imageUrlParse(document: Document): String
 }
 
-// --- FABRIQUE PRINCIPALE MULTI-SOURCES ---
-
 class FrenchSourcesFactory : SourceFactory {
     override fun createSources(): List<Source> = listOf(
         MangasOrigines(),
@@ -146,10 +141,7 @@ class FrenchSourcesFactory : SourceFactory {
     )
 }
 
-// ==========================================
-// 1. SOURCE : MANGAS ORIGINES
-// ==========================================
-
+// 1. MANGAS ORIGINES
 class MangasOrigines : ParsedHttpSource() {
     override val name = "Mangas Origines"
     override val baseUrl = "https://mangas-origines.fr"
@@ -162,10 +154,7 @@ class MangasOrigines : ParsedHttpSource() {
 
     override fun popularMangaRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/oeuvre/?page=$page").headers(headers).build()
-
-    override fun popularMangaSelector(): String =
-        "div.grid > div, div.relative.rounded-xl, a[href*='/oeuvre/']:has(img)"
-
+    override fun popularMangaSelector(): String = "div.grid > div, div.relative.rounded-xl, a[href*='/oeuvre/']:has(img)"
     override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
         val link = if (element.tagName() == "a") element else element.select("a[href*='/oeuvre/']").first()!!
         val rawTitle = element.select("h1, h2, h3, h4, .title, span.font-bold").first()?.text()?.trim()
@@ -174,7 +163,6 @@ class MangasOrigines : ParsedHttpSource() {
         val img = element.select("img").first()
         thumbnail_url = img?.attr("abs:data-src")?.ifEmpty { img.attr("abs:src") } ?: ""
     }
-
     override fun popularMangaNextPageSelector(): String? = "a[rel=next], a:contains(Suivant)"
 
     override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
@@ -184,7 +172,6 @@ class MangasOrigines : ParsedHttpSource() {
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
         Request.Builder().url("$baseUrl/oeuvre/?search=${URLEncoder.encode(query, "UTF-8")}&page=$page").headers(headers).build()
-
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = popularMangaNextPageSelector()
@@ -205,7 +192,6 @@ class MangasOrigines : ParsedHttpSource() {
     }
 
     override fun chapterListSelector(): String = "a[href*='/chapitre-'], div.chapitres_list a, div.chapter-list a"
-
     override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
         setUrlWithoutDomain(element.attr("href"))
         val nameEl = element.select("span, p, h3").first()
@@ -224,14 +210,10 @@ class MangasOrigines : ParsedHttpSource() {
         }
         return pages
     }
-
     override fun imageUrlParse(document: Document): String = ""
 }
 
-// ==========================================
-// 2. SOURCE : SUSHI-SCAN
-// ==========================================
-
+// 2. SUSHI-SCAN
 class SushiScan : ParsedHttpSource() {
     override val name = "Sushi-Scan"
     override val baseUrl = "https://sushiscan.net"
@@ -244,9 +226,7 @@ class SushiScan : ParsedHttpSource() {
 
     override fun popularMangaRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/manga-list/page/$page/").headers(headers).build()
-
     override fun popularMangaSelector(): String = "div.bsx, div.listupd div.bs"
-
     override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
         val link = element.select("a").first()!!
         title = element.select(".tt, .title, a").first()!!.text().trim()
@@ -254,19 +234,16 @@ class SushiScan : ParsedHttpSource() {
         val img = element.select("img").first()
         thumbnail_url = img?.attr("abs:data-src")?.ifEmpty { img.attr("abs:src") } ?: ""
     }
-
     override fun popularMangaNextPageSelector(): String? = "a.r, a.next"
 
     override fun latestUpdatesRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/page/$page/").headers(headers).build()
-
     override fun latestUpdatesSelector(): String = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun latestUpdatesNextPageSelector(): String? = popularMangaNextPageSelector()
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
         Request.Builder().url("$baseUrl/page/$page/?s=${URLEncoder.encode(query, "UTF-8")}").headers(headers).build()
-
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = popularMangaNextPageSelector()
@@ -286,7 +263,6 @@ class SushiScan : ParsedHttpSource() {
     }
 
     override fun chapterListSelector(): String = "div#chapterlist ul li"
-
     override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
         val link = element.select("a").first()!!
         setUrlWithoutDomain(link.attr("href"))
@@ -305,14 +281,10 @@ class SushiScan : ParsedHttpSource() {
         }
         return pages
     }
-
     override fun imageUrlParse(document: Document): String = ""
 }
 
-// ==========================================
-// 3. SOURCE : SCAN-MANGA
-// ==========================================
-
+// 3. SCAN-MANGA
 class ScanManga : ParsedHttpSource() {
     override val name = "Scan-Manga"
     override val baseUrl = "https://www.scan-manga.com"
@@ -327,28 +299,23 @@ class ScanManga : ParsedHttpSource() {
 
     override fun popularMangaRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/top-mangas.html?page=$page").headers(headers).build()
-
     override fun popularMangaSelector(): String = "div.content_manga div.element, div.listing_manga div.manga_item, div.item"
-
     override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
         val link = element.select("div.title a, h3 a, a.titre_manga, a[href*='.html']").first()!!
         title = link.text().trim()
         setUrlWithoutDomain(link.attr("href"))
         thumbnail_url = element.select("div.image img, img.manga_img, img").attr("abs:src")
     }
-
     override fun popularMangaNextPageSelector(): String? = "div.pagination a.next"
 
     override fun latestUpdatesRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/").headers(headers).build()
-
     override fun latestUpdatesSelector(): String = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun latestUpdatesNextPageSelector(): String? = null
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
         Request.Builder().url("$baseUrl/recherche?q=${URLEncoder.encode(query, "UTF-8")}").headers(headers).build()
-
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = null
@@ -366,7 +333,6 @@ class ScanManga : ParsedHttpSource() {
     }
 
     override fun chapterListSelector(): String = "div.chapitres_list div.chapitre, ul.chapters_list li, div.chapter_row"
-
     override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
         val link = element.select("a").first()!!
         setUrlWithoutDomain(link.attr("href"))
@@ -403,6 +369,5 @@ class ScanManga : ParsedHttpSource() {
         }
         return pages
     }
-
     override fun imageUrlParse(document: Document): String = ""
 }
