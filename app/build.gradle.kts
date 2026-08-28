@@ -19,7 +19,7 @@ android {
         create("release") {
             storeFile = file(System.getenv("KEYSTORE_PATH") ?: "../signingkey.jks")
             storePassword = System.getenv("KEY_PASSWORD") ?: "android"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "frenchsources"
             keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
         }
     }
@@ -38,6 +38,12 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    sourceSets {
+        getByName("main") {
+            res.srcDirs("src/main/res")
+        }
     }
 }
 
