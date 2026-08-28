@@ -49,14 +49,56 @@ jobs:
         run: |
           gradle :app:assembleRelease --stacktrace
 
-      - name: Prepare Repo Directory & Generate index.min.json
+      - name: Prepare Repo Directory & Metadata
         run: |
           mkdir -p repo/apk
           cp app/build/outputs/apk/release/*.apk repo/apk/frenchsources.apk
           touch repo/.nojekyll
 
+          # 1. Génération de repo.json (Requis par Mihon moderne)
+          cat << 'EOF' > repo/repo.json
+          {
+            "name": "Mes Sources FR",
+            "website": "https://github.com/anderson76389/mihon-repo",
+            "signingKeyFingerprint": "androiddebugkey"
+          }
+          EOF
+
+          # 2. Génération de index.min.json (Catalogue des sources)
           cat << 'EOF' > repo/index.min.json
-          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":1849204817491,"baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":2958102948192,"baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":7827492817491,"baseUrl":"https://www.scan-manga.com"}]}]
+          [
+            {
+              "name": "Sources Françaises",
+              "pkg": "eu.kanade.tachiyomi.extension.fr.frenchsources",
+              "apk": "frenchsources.apk",
+              "lang": "fr",
+              "code": 1,
+              "version": "1.0.0",
+              "nsfw": 0,
+              "hasReadme": 0,
+              "hasChangelog": 0,
+              "sources": [
+                {
+                  "name": "Mangas Origines",
+                  "lang": "fr",
+                  "id": "1849204817491",
+                  "baseUrl": "https://mangas-origines.fr"
+                },
+                {
+                  "name": "Sushi-Scan",
+                  "lang": "fr",
+                  "id": "2958102948192",
+                  "baseUrl": "https://sushiscan.net"
+                },
+                {
+                  "name": "Scan-Manga",
+                  "lang": "fr",
+                  "id": "7827492817491",
+                  "baseUrl": "https://www.scan-manga.com"
+                }
+              ]
+            }
+          ]
           EOF
 
       - name: Deploy to GitHub Pages
