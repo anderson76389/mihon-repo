@@ -55,11 +55,7 @@ jobs:
           cp app/build/outputs/apk/release/*.apk repo/apk/frenchsources.apk
 
           python3 -c '
-          import json, hashlib
-
-          apk_path = "repo/apk/frenchsources.apk"
-          with open(apk_path, "rb") as f:
-              apk_hash = hashlib.sha256(f.read()).hexdigest()
+          import json
 
           repo_data = [
               {
@@ -76,19 +72,19 @@ jobs:
                       {
                           "name": "Mangas Origines",
                           "lang": "fr",
-                          "id": "1849204817491",
+                          "id": 1849204817491,
                           "baseUrl": "https://mangas-origines.fr"
                       },
                       {
                           "name": "Sushi-Scan",
                           "lang": "fr",
-                          "id": "2958102948192",
+                          "id": 2958102948192,
                           "baseUrl": "https://sushiscan.net"
                       },
                       {
                           "name": "Scan-Manga",
                           "lang": "fr",
-                          "id": "7827492817491",
+                          "id": 7827492817491,
                           "baseUrl": "https://www.scan-manga.com"
                       }
                   ]
