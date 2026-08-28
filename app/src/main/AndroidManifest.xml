@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="Scan-Manga"
+        android:label="Sources Françaises"
         android:hasCode="true">
         <meta-data
             android:name="tachiyomi.extension.class"
-            android:value="eu.kanade.tachiyomi.extension.fr.scanmanga.ScanManga" />
+            android:value="" />
         <meta-data
             android:name="tachiyomi.extension.factory"
-            android:value="" />
+            android:value="eu.kanade.tachiyomi.extension.fr.frenchsources.FrenchSourcesFactory" />
     </application>
 </manifest>
