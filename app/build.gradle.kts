@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "eu.kanade.tachiyomi.extension.fr.scanmanga"
+    namespace = "eu.kanade.tachiyomi.extension.fr.frenchsources"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "eu.kanade.tachiyomi.extension.fr.scanmanga"
+        applicationId = "eu.kanade.tachiyomi.extension.fr.frenchsources"
         minSdk = 21
         targetSdk = 34
         versionCode = 1
-        versionName = "1.4.1"
+        versionName = "1.0.0"
     }
 
     signingConfigs {
