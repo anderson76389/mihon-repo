@@ -52,27 +52,39 @@ jobs:
       - name: Prepare Repo Directory & Generate index.min.json
         run: |
           mkdir -p repo/apk
-          cp app/build/outputs/apk/release/*.apk repo/apk/scanmanga.apk
+          cp app/build/outputs/apk/release/*.apk repo/apk/frenchsources.apk
 
           python3 -c '
           import json, hashlib
 
-          apk_path = "repo/apk/scanmanga.apk"
+          apk_path = "repo/apk/frenchsources.apk"
           with open(apk_path, "rb") as f:
               apk_hash = hashlib.sha256(f.read()).hexdigest()
 
           repo_data = [
               {
-                  "name": "Scan-Manga",
-                  "pkg": "eu.kanade.tachiyomi.extension.fr.scanmanga",
-                  "apk": "scanmanga.apk",
+                  "name": "Sources Françaises",
+                  "pkg": "eu.kanade.tachiyomi.extension.fr.frenchsources",
+                  "apk": "frenchsources.apk",
                   "lang": "fr",
                   "code": 1,
-                  "version": "1.4.1",
+                  "version": "1.0.0",
                   "nsfw": 0,
                   "hasReadme": 0,
                   "hasChangelog": 0,
                   "sources": [
+                      {
+                          "name": "Mangas Origines",
+                          "lang": "fr",
+                          "id": "1849204817491",
+                          "baseUrl": "https://mangas-origines.fr"
+                      },
+                      {
+                          "name": "Sushi-Scan",
+                          "lang": "fr",
+                          "id": "2958102948192",
+                          "baseUrl": "https://sushiscan.net"
+                      },
                       {
                           "name": "Scan-Manga",
                           "lang": "fr",
