@@ -10,9 +10,10 @@ import java.net.URI
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
-// --- INTERFACES DU MOTEUR MIHON ---
+// --- INTERFACES ET MODÈLES DU MOTEUR MIHON ---
 
 interface Source {
     val id: Long get() = (name + lang).hashCode().toLong() and 0x7fffffffffffffffL
@@ -98,13 +99,18 @@ class SChapterImpl : SChapter {
 }
 
 class Page(val index: Int, val url: String = "", var imageUrl: String? = null)
+
 class FilterList(val filters: List<Any> = emptyList())
 
 abstract class ParsedHttpSource : Source {
     abstract val baseUrl: String
     abstract val supportsLatest: Boolean
 
-    open val client: OkHttpClient = OkHttpClient()
+    open val client: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .build()
+
     open val headers: Headers get() = headersBuilder().build()
     open fun headersBuilder(): Headers.Builder = Headers.Builder()
 
@@ -130,7 +136,7 @@ abstract class ParsedHttpSource : Source {
     abstract fun imageUrlParse(document: Document): String
 }
 
-// --- FABRIQUE D'EXTENSIONS (ENREGISTREMENT GLOBAL) ---
+// --- FABRIQUE PRINCIPALE MULTI-SOURCES ---
 
 class FrenchSourcesFactory : SourceFactory {
     override fun createSources(): List<Source> = listOf(
@@ -140,7 +146,9 @@ class FrenchSourcesFactory : SourceFactory {
     )
 }
 
-// --- 1. SOURCE : MANGAS ORIGINES ---
+// ==========================================
+// 1. SOURCE : MANGAS ORIGINES
+// ==========================================
 
 class MangasOrigines : ParsedHttpSource() {
     override val name = "Mangas Origines"
@@ -149,12 +157,15 @@ class MangasOrigines : ParsedHttpSource() {
     override val supportsLatest = true
 
     override fun headersBuilder(): Headers.Builder = Headers.Builder()
-        .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .add("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36")
         .add("Referer", "$baseUrl/")
 
     override fun popularMangaRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/oeuvre/?page=$page").headers(headers).build()
-    override fun popularMangaSelector(): String = "div.grid > div, div.relative.rounded-xl, a[href*='/oeuvre/']:has(img)"
+
+    override fun popularMangaSelector(): String =
+        "div.grid > div, div.relative.rounded-xl, a[href*='/oeuvre/']:has(img)"
+
     override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
         val link = if (element.tagName() == "a") element else element.select("a[href*='/oeuvre/']").first()!!
         val rawTitle = element.select("h1, h2, h3, h4, .title, span.font-bold").first()?.text()?.trim()
@@ -163,6 +174,7 @@ class MangasOrigines : ParsedHttpSource() {
         val img = element.select("img").first()
         thumbnail_url = img?.attr("abs:data-src")?.ifEmpty { img.attr("abs:src") } ?: ""
     }
+
     override fun popularMangaNextPageSelector(): String? = "a[rel=next], a:contains(Suivant)"
 
     override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
@@ -172,6 +184,7 @@ class MangasOrigines : ParsedHttpSource() {
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
         Request.Builder().url("$baseUrl/oeuvre/?search=${URLEncoder.encode(query, "UTF-8")}&page=$page").headers(headers).build()
+
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = popularMangaNextPageSelector()
@@ -192,6 +205,7 @@ class MangasOrigines : ParsedHttpSource() {
     }
 
     override fun chapterListSelector(): String = "a[href*='/chapitre-'], div.chapitres_list a, div.chapter-list a"
+
     override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
         setUrlWithoutDomain(element.attr("href"))
         val nameEl = element.select("span, p, h3").first()
@@ -210,10 +224,13 @@ class MangasOrigines : ParsedHttpSource() {
         }
         return pages
     }
+
     override fun imageUrlParse(document: Document): String = ""
 }
 
-// --- 2. SOURCE : SUSHI-SCAN ---
+// ==========================================
+// 2. SOURCE : SUSHI-SCAN
+// ==========================================
 
 class SushiScan : ParsedHttpSource() {
     override val name = "Sushi-Scan"
@@ -222,12 +239,14 @@ class SushiScan : ParsedHttpSource() {
     override val supportsLatest = true
 
     override fun headersBuilder(): Headers.Builder = Headers.Builder()
-        .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .add("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36")
         .add("Referer", "$baseUrl/")
 
     override fun popularMangaRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/manga-list/page/$page/").headers(headers).build()
+
     override fun popularMangaSelector(): String = "div.bsx, div.listupd div.bs"
+
     override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
         val link = element.select("a").first()!!
         title = element.select(".tt, .title, a").first()!!.text().trim()
@@ -235,16 +254,19 @@ class SushiScan : ParsedHttpSource() {
         val img = element.select("img").first()
         thumbnail_url = img?.attr("abs:data-src")?.ifEmpty { img.attr("abs:src") } ?: ""
     }
+
     override fun popularMangaNextPageSelector(): String? = "a.r, a.next"
 
     override fun latestUpdatesRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/page/$page/").headers(headers).build()
+
     override fun latestUpdatesSelector(): String = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun latestUpdatesNextPageSelector(): String? = popularMangaNextPageSelector()
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
         Request.Builder().url("$baseUrl/page/$page/?s=${URLEncoder.encode(query, "UTF-8")}").headers(headers).build()
+
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = popularMangaNextPageSelector()
@@ -264,6 +286,7 @@ class SushiScan : ParsedHttpSource() {
     }
 
     override fun chapterListSelector(): String = "div#chapterlist ul li"
+
     override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
         val link = element.select("a").first()!!
         setUrlWithoutDomain(link.attr("href"))
@@ -282,10 +305,13 @@ class SushiScan : ParsedHttpSource() {
         }
         return pages
     }
+
     override fun imageUrlParse(document: Document): String = ""
 }
 
-// --- 3. SOURCE : SCAN-MANGA ---
+// ==========================================
+// 3. SOURCE : SCAN-MANGA
+// ==========================================
 
 class ScanManga : ParsedHttpSource() {
     override val name = "Scan-Manga"
@@ -294,34 +320,41 @@ class ScanManga : ParsedHttpSource() {
     override val supportsLatest = true
 
     override fun headersBuilder(): Headers.Builder = Headers.Builder()
-        .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .add("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36")
         .add("Referer", "$baseUrl/")
+        .add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+        .add("Accept-Language", "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7")
 
     override fun popularMangaRequest(page: Int): Request =
         Request.Builder().url("$baseUrl/top-mangas.html?page=$page").headers(headers).build()
-    override fun popularMangaSelector(): String = "div.content_manga div.element, div.listing_manga div.manga_item"
+
+    override fun popularMangaSelector(): String = "div.content_manga div.element, div.listing_manga div.manga_item, div.item"
+
     override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
-        val link = element.select("div.title a, h3 a, a.titre_manga").first()!!
+        val link = element.select("div.title a, h3 a, a.titre_manga, a[href*='.html']").first()!!
         title = link.text().trim()
         setUrlWithoutDomain(link.attr("href"))
-        thumbnail_url = element.select("div.image img, img.manga_img").attr("abs:src")
+        thumbnail_url = element.select("div.image img, img.manga_img, img").attr("abs:src")
     }
+
     override fun popularMangaNextPageSelector(): String? = "div.pagination a.next"
 
     override fun latestUpdatesRequest(page: Int): Request =
-        Request.Builder().url(baseUrl).headers(headers).build()
+        Request.Builder().url("$baseUrl/").headers(headers).build()
+
     override fun latestUpdatesSelector(): String = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun latestUpdatesNextPageSelector(): String? = null
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
         Request.Builder().url("$baseUrl/recherche?q=${URLEncoder.encode(query, "UTF-8")}").headers(headers).build()
+
     override fun searchMangaSelector(): String = popularMangaSelector()
     override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
     override fun searchMangaNextPageSelector(): String? = null
 
     override fun mangaDetailsParse(document: Document): SManga = SManga.create().apply {
-        description = document.select("div.description, div.synopsis").text().trim()
+        description = document.select("div.description, div.synopsis, div#synopsis").text().trim()
         genre = document.select("div.genres a, div.tags a").joinToString { it.text().trim() }
         val statusText = document.select("div.status, span.statut").text().lowercase()
         status = when {
@@ -332,7 +365,8 @@ class ScanManga : ParsedHttpSource() {
         thumbnail_url = document.select("div.cover img, div.image_manga img").attr("abs:src")
     }
 
-    override fun chapterListSelector(): String = "div.chapitres_list div.chapitre, ul.chapters_list li"
+    override fun chapterListSelector(): String = "div.chapitres_list div.chapitre, ul.chapters_list li, div.chapter_row"
+
     override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
         val link = element.select("a").first()!!
         setUrlWithoutDomain(link.attr("href"))
@@ -360,14 +394,15 @@ class ScanManga : ParsedHttpSource() {
             }
         }
         if (pages.isEmpty()) {
-            document.select("div.reader-images img, div#lecture img").forEachIndexed { index, element ->
+            document.select("div.reader-images img, div#lecture img, div.page-break img").forEachIndexed { index, element ->
                 val src = element.attr("data-src").ifEmpty { element.attr("src") }.trim()
-                if (src.isNotBlank()) {
+                if (src.isNotBlank() && !src.contains("pub") && !src.contains("banner")) {
                     pages.add(Page(index, "", if (src.startsWith("http")) src else baseUrl + src))
                 }
             }
         }
         return pages
     }
+
     override fun imageUrlParse(document: Document): String = ""
 }
