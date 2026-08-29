@@ -18,124 +18,71 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python & Pillow
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Python Image Tools
-        run: |
-          pip install pillow requests
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: temurin
 
+      - name: Set up Android SDK Tools
+        uses: android-actions/setup-android@v3
+
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.7
 
-      - name: Prepare Fixed Keystore & Extract Fingerprint
+      - name: Create Production Keystore
         run: |
-          # Création d'un keystore stable avec clé fixe
           keytool -genkeypair -v \
-            -keystore signingkey.jks \
-            -alias frenchsources \
+            -keystore release.keystore \
+            -alias mihonkey \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=FrenchSources,OU=Dev,O=Repo,L=Paris,ST=IDF,C=FR"
+            -storepass "UniversalKey2026!" \
+            -keypass "UniversalKey2026!" \
+            -dname "CN=Mihon,OU=Extension,O=Repo,L=Paris,ST=IDF,C=FR"
 
-          FINGERPRINT=$(keytool -list -v -keystore signingkey.jks -alias frenchsources -storepass android | grep -i "SHA256:" | head -n 1 | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          # Extraction de l'empreinte SHA-256 pour Mihon
+          FINGERPRINT=$(keytool -list -v -keystore release.keystore -alias mihonkey -storepass "UniversalKey2026!" | grep -i "SHA256:" | head -n 1 | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
           echo "SHA256_FP=$FINGERPRINT" >> $GITHUB_ENV
 
-      - name: Generate High-Res Branded Icons
-        run: |
-          mkdir -p app/src/main/res/mipmap-xxxhdpi
-          mkdir -p app/src/main/res/drawable
-          mkdir -p repo/icon
-
-          python3 -c '
-          import os, requests
-          from PIL import Image, ImageDraw
-
-          headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-
-          def fetch_or_draw(url, bg_color, primary_color, out_paths):
-              img = None
-              try:
-                  res = requests.get(url, headers=headers, timeout=5)
-                  if res.status_code == 200:
-                      from io import BytesIO
-                      fetched = Image.open(BytesIO(res.content)).convert("RGBA")
-                      img = fetched.resize((512, 512), Image.Resampling.LANCZOS)
-              except Exception:
-                  img = None
-
-              if img is None:
-                  img = Image.new("RGBA", (512, 512), bg_color)
-                  draw = ImageDraw.Draw(img)
-                  draw.ellipse([24, 24, 488, 488], fill=primary_color)
-                  draw.ellipse([40, 40, 472, 472], outline=(255, 255, 255, 230), width=12)
-
-              for path in out_paths:
-                  os.makedirs(os.path.dirname(path), exist_ok=True)
-                  img.save(path, format="PNG")
-
-          # 1. Pack principal (Sources FR)
-          fetch_or_draw("", (15, 23, 42, 255), (37, 99, 235, 255), [
-              "app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
-              "app/src/main/res/drawable/ic_launcher.png",
-              "repo/icon/eu.kanade.tachiyomi.extension.fr.frenchsources.png",
-              "repo/icon/frenchsources.png"
-          ])
-
-          # 2. Mangas Origines
-          fetch_or_draw("https://mangas-origines.fr/wp-content/uploads/2023/12/cropped-Favicon-192x192.png", (18, 18, 24, 255), (124, 58, 237, 255), [
-              "app/src/main/res/drawable/icon_1849204817491.png",
-              "repo/icon/1849204817491.png",
-              "repo/icon/mangas-origines.png"
-          ])
-
-          # 3. Sushi-Scan
-          fetch_or_draw("https://sushiscan.net/wp-content/uploads/2021/08/cropped-favicon-192x192.png", (18, 18, 24, 255), (239, 68, 68, 255), [
-              "app/src/main/res/drawable/icon_2958102948192.png",
-              "repo/icon/2958102948192.png",
-              "repo/icon/sushi-scan.png"
-          ])
-
-          # 4. Scan-Manga
-          fetch_or_draw("https://www.scan-manga.com/favicon.ico", (18, 18, 24, 255), (14, 165, 233, 255), [
-              "app/src/main/res/drawable/icon_7827492817491.png",
-              "repo/icon/7827492817491.png",
-              "repo/icon/scan-manga.png"
-          ])
-          print("Toutes les icônes ont été générées avec succès.")
-          '
-
-      - name: Build APK
-        env:
-          KEYSTORE_PATH: ../signingkey.jks
-          KEY_ALIAS: frenchsources
-          KEY_PASSWORD: android
+      - name: Build Raw APK
         run: |
           gradle :app:assembleRelease --stacktrace
 
-      - name: Prepare Repo Directory & Metadata
+      - name: Align & Sign APK (Android Universal Compatibility v1/v2/v3)
         run: |
-          mkdir -p repo/apk
-          cp app/build/outputs/apk/release/*.apk repo/apk/frenchsources.apk
-          # Duplication vers les alias pour neutraliser tout cache Mihon résiduel
-          cp repo/apk/frenchsources.apk repo/apk/mangasorigines.apk
-          cp repo/apk/frenchsources.apk repo/apk/sushiscan.apk
-          cp repo/apk/frenchsources.apk repo/apk/scanmanga.apk
+          mkdir -p repo/apk repo/icon
+          RAW_APK=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+
+          # 1. Alignement mémoire (Zipalign)
+          ${ANDROID_HOME}/build-tools/34.0.0/zipalign -v -p 4 "$RAW_APK" repo/apk/aligned.apk
+
+          # 2. Signature complète Google (v1, v2, v3)
+          ${ANDROID_HOME}/build-tools/34.0.0/apksigner sign \
+            --ks release.keystore \
+            --ks-key-alias mihonkey \
+            --ks-pass pass:"UniversalKey2026!" \
+            --key-pass pass:"UniversalKey2026!" \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out repo/apk/frenchsources.apk \
+            repo/apk/aligned.apk
+
+          # 3. Nettoyage
+          rm -f repo/apk/aligned.apk
+
+      - name: Generate Meta & Repo Files
+        run: |
           touch repo/.nojekyll
 
+          # Récupération de l'icône
+          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "repo/icon/eu.kanade.tachiyomi.extension.fr.frenchsources.png" || true
+
+          # Fichier repo.json requis par Mihon
           cat << EOF > repo/repo.json
           {
             "meta": {
@@ -146,8 +93,9 @@ jobs:
           }
           EOF
 
+          # Fichier catalogue index.min.json
           cat << 'EOF' > repo/index.min.json
-          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":1849204817491,"baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":2958102948192,"baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":7827492817491,"baseUrl":"https://www.scan-manga.com"}]}]
+          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":"1849204817491","baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":"2958102948192","baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":"7827492817491","baseUrl":"https://www.scan-manga.com"}]}]
           EOF
 
       - name: Deploy to GitHub Pages
