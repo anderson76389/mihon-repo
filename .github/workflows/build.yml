@@ -24,15 +24,12 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - name: Set up Android SDK Tools
-        uses: android-actions/setup-android@v3
-
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.7
 
-      - name: Create Production Keystore
+      - name: Generate Static Keystore & Fingerprint
         run: |
           keytool -genkeypair -v \
             -keystore release.keystore \
@@ -42,47 +39,23 @@ jobs:
             -validity 10000 \
             -storepass "UniversalKey2026!" \
             -keypass "UniversalKey2026!" \
-            -dname "CN=Mihon,OU=Extension,O=Repo,L=Paris,ST=IDF,C=FR"
+            -dname "CN=MihonExtension,OU=Dev,O=Repo,L=Paris,ST=IDF,C=FR"
 
-          # Extraction de l'empreinte SHA-256 pour Mihon
           FINGERPRINT=$(keytool -list -v -keystore release.keystore -alias mihonkey -storepass "UniversalKey2026!" | grep -i "SHA256:" | head -n 1 | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
           echo "SHA256_FP=$FINGERPRINT" >> $GITHUB_ENV
 
-      - name: Build Raw APK
+      - name: Build and Sign APK
         run: |
           gradle :app:assembleRelease --stacktrace
 
-      - name: Align & Sign APK (Android Universal Compatibility v1/v2/v3)
+      - name: Prepare Repo Directory & Metadata
         run: |
           mkdir -p repo/apk repo/icon
-          RAW_APK=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
-
-          # 1. Alignement mémoire (Zipalign)
-          ${ANDROID_HOME}/build-tools/34.0.0/zipalign -v -p 4 "$RAW_APK" repo/apk/aligned.apk
-
-          # 2. Signature complète Google (v1, v2, v3)
-          ${ANDROID_HOME}/build-tools/34.0.0/apksigner sign \
-            --ks release.keystore \
-            --ks-key-alias mihonkey \
-            --ks-pass pass:"UniversalKey2026!" \
-            --key-pass pass:"UniversalKey2026!" \
-            --v1-signing-enabled true \
-            --v2-signing-enabled true \
-            --v3-signing-enabled true \
-            --out repo/apk/frenchsources.apk \
-            repo/apk/aligned.apk
-
-          # 3. Nettoyage
-          rm -f repo/apk/aligned.apk
-
-      - name: Generate Meta & Repo Files
-        run: |
+          cp app/build/outputs/apk/release/*.apk repo/apk/frenchsources.apk
           touch repo/.nojekyll
 
-          # Récupération de l'icône
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "repo/icon/eu.kanade.tachiyomi.extension.fr.frenchsources.png" || true
 
-          # Fichier repo.json requis par Mihon
           cat << EOF > repo/repo.json
           {
             "meta": {
@@ -93,9 +66,8 @@ jobs:
           }
           EOF
 
-          # Fichier catalogue index.min.json
           cat << 'EOF' > repo/index.min.json
-          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":"1849204817491","baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":"2958102948192","baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":"7827492817491","baseUrl":"https://www.scan-manga.com"}]}]
+          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":1849204817491,"baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":2958102948192,"baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":7827492817491,"baseUrl":"https://www.scan-manga.com"}]}]
           EOF
 
       - name: Deploy to GitHub Pages
