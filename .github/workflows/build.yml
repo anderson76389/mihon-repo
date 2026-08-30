@@ -50,22 +50,22 @@ jobs:
         run: |
           gradle :app:assembleRelease --stacktrace
 
-      - name: Prepare Distribution Files & Icons
+      - name: Prepare Distribution Files & Custom Icons
         run: |
           mkdir -p /tmp/deploy/apk /tmp/deploy/icon
           touch /tmp/deploy/.nojekyll
 
-          # Copie des 3 APK distincts
+          # 1. Copie des 3 APK distincts
           cp app/build/outputs/apk/mangasorigines/release/*.apk /tmp/deploy/apk/mangasorigines.apk
           cp app/build/outputs/apk/sushiscan/release/*.apk /tmp/deploy/apk/sushiscan.apk
           cp app/build/outputs/apk/scanmanga/release/*.apk /tmp/deploy/apk/scanmanga.apk
 
-          # Récupération des 3 icônes distinctes
-          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" || true
-          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" || true
-          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" || true
+          # 2. Copie de vos 3 icônes dédiées
+          cp icons/mangasorigines.png /tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png
+          cp icons/sushiscan.png /tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png
+          cp icons/scanmanga.png /tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png
 
-          # Fichier repo.json
+          # 3. Métadonnées du magasin (repo.json)
           cat << EOF > /tmp/deploy/repo.json
           {
             "meta": {
@@ -76,7 +76,7 @@ jobs:
           }
           EOF
 
-          # Fichier catalogue index.min.json pour les 3 extensions séparées
+          # 4. Catalogue index.min.json
           cat << 'EOF' > /tmp/deploy/index.min.json
           [
             {
@@ -145,10 +145,10 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -B repo
-          rm -rf app gradle .github .gitignore *.gradle* gradlew* release.keystore
+          rm -rf app gradle .github .gitignore *.gradle* gradlew* release.keystore icons
           cp -r /tmp/deploy/* .
           cp /tmp/deploy/.nojekyll .
 
           git add -A
-          git commit -m "Deploy 3 separate extension APKs" || echo "No changes to commit"
+          git commit -m "Deploy extensions with custom icons" || echo "No changes to commit"
           git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" repo
