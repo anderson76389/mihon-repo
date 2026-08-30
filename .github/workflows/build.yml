@@ -48,7 +48,7 @@ jobs:
 
       - name: Build All 3 Extension APKs
         run: |
-          gradle assembleRelease --stacktrace
+          gradle :app:assembleRelease --stacktrace
 
       - name: Prepare Distribution Files & Icons
         run: |
@@ -65,7 +65,7 @@ jobs:
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" || true
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" || true
 
-          # Métadonnées du repo
+          # Fichier repo.json
           cat << EOF > /tmp/deploy/repo.json
           {
             "meta": {
@@ -76,7 +76,7 @@ jobs:
           }
           EOF
 
-          # Catalogue des 3 extensions
+          # Fichier catalogue index.min.json pour les 3 extensions séparées
           cat << 'EOF' > /tmp/deploy/index.min.json
           [
             {
@@ -151,4 +151,4 @@ jobs:
 
           git add -A
           git commit -m "Deploy 3 separate extension APKs" || echo "No changes to commit"
-          git push --force origin repo
+          git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" repo
