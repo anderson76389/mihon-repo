@@ -35,9 +35,9 @@ jobs:
         run: |
           git fetch origin repo || true
           if git show origin/repo:release.keystore > release.keystore 2>/dev/null; then
-            echo "Keystore permanent existant réutilisé."
+            echo "Keystore permanent recupere."
           else
-            echo "Création initiale du keystore permanent..."
+            echo "Creation du keystore permanent..."
             keytool -genkeypair -v \
               -keystore release.keystore \
               -alias mihonkey \
@@ -56,25 +56,23 @@ jobs:
         run: |
           gradle assembleRelease --stacktrace
 
-      - name: Prepare Distribution Files & Icons
+      - name: Prepare Distribution Files & Metadata
         run: |
           mkdir -p /tmp/deploy/apk /tmp/deploy/icon
           touch /tmp/deploy/.nojekyll
 
-          # Sauvegarde du keystore permanent sur la branche repo
           cp release.keystore /tmp/deploy/release.keystore
 
-          # Copie des 3 APK distincts
-          cp app/build/outputs/apk/mangasorigines/release/*.apk /tmp/deploy/apk/mangasorigines.apk
-          cp app/build/outputs/apk/sushiscan/release/*.apk /tmp/deploy/apk/sushiscan.apk
-          cp app/build/outputs/apk/scanmanga/release/*.apk /tmp/deploy/apk/scanmanga.apk
+          # Copie dynamique sans risque d'erreur de chemin
+          find app/build/outputs/apk/mangasorigines/release -name "*.apk" -exec cp {} /tmp/deploy/apk/mangasorigines.apk \;
+          find app/build/outputs/apk/sushiscan/release -name "*.apk" -exec cp {} /tmp/deploy/apk/sushiscan.apk \;
+          find app/build/outputs/apk/scanmanga/release -name "*.apk" -exec cp {} /tmp/deploy/apk/scanmanga.apk \;
 
           # Téléchargement des icônes
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" || true
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" || true
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" || true
 
-          # Métadonnées du repo
           cat << EOF > /tmp/deploy/repo.json
           {
             "meta": {
@@ -85,7 +83,6 @@ jobs:
           }
           EOF
 
-          # Catalogue des 3 extensions
           cat << 'EOF' > /tmp/deploy/index.min.json
           [
             {
@@ -159,5 +156,5 @@ jobs:
           cp /tmp/deploy/.nojekyll .
 
           git add -A
-          git commit -m "Deploy 3 separate extension APKs with permanent key" || echo "No changes to commit"
+          git commit -m "Deploy 3 APKs and repo index" || echo "No changes to commit"
           git push --force origin repo
