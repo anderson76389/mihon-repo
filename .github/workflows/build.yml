@@ -31,17 +31,23 @@ jobs:
         with:
           gradle-version: 8.7
 
-      - name: Generate Static Keystore & Fingerprint
+      - name: Restore or Create Permanent Keystore
         run: |
-          keytool -genkeypair -v \
-            -keystore release.keystore \
-            -alias mihonkey \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass "UniversalKey2026!" \
-            -keypass "UniversalKey2026!" \
-            -dname "CN=MihonExtension,OU=Dev,O=Repo,L=Paris,ST=IDF,C=FR"
+          git fetch origin repo || true
+          if git show origin/repo:release.keystore > release.keystore 2>/dev/null; then
+            echo "Keystore permanent existant réutilisé."
+          else
+            echo "Création initiale du keystore permanent..."
+            keytool -genkeypair -v \
+              -keystore release.keystore \
+              -alias mihonkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass "UniversalKey2026!" \
+              -keypass "UniversalKey2026!" \
+              -dname "CN=Mihon,OU=Extension,O=FrenchSources,L=Paris,ST=IDF,C=FR"
+          fi
 
           FINGERPRINT=$(keytool -list -v -keystore release.keystore -alias mihonkey -storepass "UniversalKey2026!" | grep -i "SHA256:" | head -n 1 | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
           echo "SHA256_FP=$FINGERPRINT" >> $GITHUB_ENV
@@ -55,14 +61,20 @@ jobs:
           mkdir -p /tmp/deploy/apk /tmp/deploy/icon
           touch /tmp/deploy/.nojekyll
 
+          # Sauvegarde du keystore permanent sur la branche repo
+          cp release.keystore /tmp/deploy/release.keystore
+
+          # Copie des 3 APK distincts
           cp app/build/outputs/apk/mangasorigines/release/*.apk /tmp/deploy/apk/mangasorigines.apk
           cp app/build/outputs/apk/sushiscan/release/*.apk /tmp/deploy/apk/sushiscan.apk
           cp app/build/outputs/apk/scanmanga/release/*.apk /tmp/deploy/apk/scanmanga.apk
 
+          # Téléchargement des icônes
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" || true
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" || true
           curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" || true
 
+          # Métadonnées du repo
           cat << EOF > /tmp/deploy/repo.json
           {
             "meta": {
@@ -73,6 +85,7 @@ jobs:
           }
           EOF
 
+          # Catalogue des 3 extensions
           cat << 'EOF' > /tmp/deploy/index.min.json
           [
             {
@@ -146,5 +159,5 @@ jobs:
           cp /tmp/deploy/.nojekyll .
 
           git add -A
-          git commit -m "Deploy 3 separate extension APKs" || echo "No changes to commit"
+          git commit -m "Deploy 3 separate extension APKs with permanent key" || echo "No changes to commit"
           git push --force origin repo
