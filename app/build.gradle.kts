@@ -17,10 +17,12 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "../signingkey.jks")
-            storePassword = System.getenv("KEY_PASSWORD") ?: "android"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "frenchsources"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+            storeFile = file("${project.rootDir}/release.keystore")
+            storePassword = "UniversalKey2026!"
+            keyAlias = "mihonkey"
+            keyPassword = "UniversalKey2026!"
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
@@ -38,12 +40,6 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
-    }
-
-    sourceSets {
-        getByName("main") {
-            res.srcDirs("src/main/res")
-        }
     }
 }
 
