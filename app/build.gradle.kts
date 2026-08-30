@@ -4,10 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "eu.kanade.tachiyomi.extension.fr"
+    namespace = "eu.kanade.tachiyomi.extension.fr.frenchsources"
     compileSdk = 34
 
     defaultConfig {
+        applicationId = "eu.kanade.tachiyomi.extension.fr.frenchsources"
         minSdk = 21
         targetSdk = 34
         versionCode = 1
@@ -22,28 +23,6 @@ android {
             keyPassword = "UniversalKey2026!"
             enableV1Signing = true
             enableV2Signing = true
-        }
-    }
-
-    flavorDimensions += "source"
-    productFlavors {
-        create("mangasorigines") {
-            dimension = "source"
-            applicationId = "eu.kanade.tachiyomi.extension.fr.mangasorigines"
-            manifestPlaceholders["extClass"] = "eu.kanade.tachiyomi.extension.fr.MangasOrigines"
-            manifestPlaceholders["appName"] = "Mangas Origines"
-        }
-        create("sushiscan") {
-            dimension = "source"
-            applicationId = "eu.kanade.tachiyomi.extension.fr.sushiscan"
-            manifestPlaceholders["extClass"] = "eu.kanade.tachiyomi.extension.fr.SushiScan"
-            manifestPlaceholders["appName"] = "Sushi-Scan"
-        }
-        create("scanmanga") {
-            dimension = "source"
-            applicationId = "eu.kanade.tachiyomi.extension.fr.scanmanga"
-            manifestPlaceholders["extClass"] = "eu.kanade.tachiyomi.extension.fr.ScanManga"
-            manifestPlaceholders["appName"] = "Scan-Manga"
         }
     }
 
