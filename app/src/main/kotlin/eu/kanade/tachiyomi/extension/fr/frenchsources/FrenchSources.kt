@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.extension.fr.frenchsources
+package eu.kanade.tachiyomi.extension.fr
 
 import okhttp3.Headers
 import okhttp3.OkHttpClient
@@ -17,10 +17,6 @@ interface Source {
     val id: Long get() = (name + lang).hashCode().toLong() and 0x7fffffffffffffffL
     val name: String
     val lang: String
-}
-
-interface SourceFactory {
-    fun createSources(): List<Source>
 }
 
 interface SManga : Serializable {
@@ -131,14 +127,6 @@ abstract class ParsedHttpSource : Source {
     abstract fun chapterFromElement(element: Element): SChapter
     abstract fun pageListParse(document: Document): List<Page>
     abstract fun imageUrlParse(document: Document): String
-}
-
-class FrenchSourcesFactory : SourceFactory {
-    override fun createSources(): List<Source> = listOf(
-        MangasOrigines(),
-        SushiScan(),
-        ScanManga()
-    )
 }
 
 // 1. MANGAS ORIGINES
