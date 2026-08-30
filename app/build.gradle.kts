@@ -25,22 +25,22 @@ android {
         }
     }
 
-    flavorDimensions += "source"
+    flavorDimensions += "ext"
     productFlavors {
         create("mangasorigines") {
-            dimension = "source"
+            dimension = "ext"
             applicationId = "eu.kanade.tachiyomi.extension.fr.mangasorigines"
             manifestPlaceholders["appName"] = "Mangas Origines"
             manifestPlaceholders["extClass"] = "eu.kanade.tachiyomi.extension.fr.MangasOrigines"
         }
         create("sushiscan") {
-            dimension = "source"
+            dimension = "ext"
             applicationId = "eu.kanade.tachiyomi.extension.fr.sushiscan"
             manifestPlaceholders["appName"] = "Sushi-Scan"
             manifestPlaceholders["extClass"] = "eu.kanade.tachiyomi.extension.fr.SushiScan"
         }
         create("scanmanga") {
-            dimension = "source"
+            dimension = "ext"
             applicationId = "eu.kanade.tachiyomi.extension.fr.scanmanga"
             manifestPlaceholders["appName"] = "Scan-Manga"
             manifestPlaceholders["extClass"] = "eu.kanade.tachiyomi.extension.fr.ScanManga"
