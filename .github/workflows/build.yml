@@ -15,8 +15,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -48,15 +50,15 @@ jobs:
         run: |
           gradle :app:assembleRelease --stacktrace
 
-      - name: Prepare Repo Directory & Metadata
+      - name: Prepare Distribution Files
         run: |
-          mkdir -p repo/apk repo/icon
-          cp app/build/outputs/apk/release/*.apk repo/apk/frenchsources.apk
-          touch repo/.nojekyll
+          mkdir -p /tmp/deploy/apk /tmp/deploy/icon
+          cp app/build/outputs/apk/release/*.apk /tmp/deploy/apk/frenchsources.apk
+          touch /tmp/deploy/.nojekyll
 
-          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "repo/icon/eu.kanade.tachiyomi.extension.fr.frenchsources.png" || true
+          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.frenchsources.png" || true
 
-          cat << EOF > repo/repo.json
+          cat << EOF > /tmp/deploy/repo.json
           {
             "meta": {
               "name": "Sources Françaises",
@@ -66,13 +68,20 @@ jobs:
           }
           EOF
 
-          cat << 'EOF' > repo/index.min.json
+          cat << 'EOF' > /tmp/deploy/index.min.json
           [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":1849204817491,"baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":2958102948192,"baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":7827492817491,"baseUrl":"https://www.scan-manga.com"}]}]
           EOF
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: repo
-          publish_dir: repo
+      - name: Deploy to repo branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B repo
+          rm -rf app gradle .github .gitignore *.gradle* gradlew* release.keystore
+          cp -r /tmp/deploy/* .
+          cp /tmp/deploy/.nojekyll .
+
+          git add -A
+          git commit -m "Update extension repository" || echo "No changes to commit"
+          git push --force origin repo
