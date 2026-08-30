@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="Sources Francaises"
+        android:label="${appName}"
         android:hasCode="true">
         <meta-data
-            android:name="tachiyomi.extension.factory"
-            android:value="eu.kanade.tachiyomi.extension.fr.frenchsources.FrenchSourcesFactory" />
+            android:name="tachiyomi.extension.class"
+            android:value="${extClass}" />
     </application>
 </manifest>
