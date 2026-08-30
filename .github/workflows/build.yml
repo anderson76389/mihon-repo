@@ -46,18 +46,26 @@ jobs:
           FINGERPRINT=$(keytool -list -v -keystore release.keystore -alias mihonkey -storepass "UniversalKey2026!" | grep -i "SHA256:" | head -n 1 | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
           echo "SHA256_FP=$FINGERPRINT" >> $GITHUB_ENV
 
-      - name: Build and Sign APK
+      - name: Build All 3 Extension APKs
         run: |
-          gradle :app:assembleRelease --stacktrace
+          gradle assembleRelease --stacktrace
 
-      - name: Prepare Distribution Files
+      - name: Prepare Distribution Files & Icons
         run: |
           mkdir -p /tmp/deploy/apk /tmp/deploy/icon
-          cp app/build/outputs/apk/release/*.apk /tmp/deploy/apk/frenchsources.apk
           touch /tmp/deploy/.nojekyll
 
-          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.frenchsources.png" || true
+          # Copie des 3 APK distincts
+          cp app/build/outputs/apk/mangasorigines/release/*.apk /tmp/deploy/apk/mangasorigines.apk
+          cp app/build/outputs/apk/sushiscan/release/*.apk /tmp/deploy/apk/sushiscan.apk
+          cp app/build/outputs/apk/scanmanga/release/*.apk /tmp/deploy/apk/scanmanga.apk
 
+          # Récupération des 3 icônes distinctes
+          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.mangasorigines.png" || true
+          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.sushiscan.png" || true
+          curl -sL "https://raw.githubusercontent.com/keiyoushi/extensions/repo/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" -o "/tmp/deploy/icon/eu.kanade.tachiyomi.extension.fr.scanmanga.png" || true
+
+          # Métadonnées du repo
           cat << EOF > /tmp/deploy/repo.json
           {
             "meta": {
@@ -68,8 +76,67 @@ jobs:
           }
           EOF
 
+          # Catalogue des 3 extensions
           cat << 'EOF' > /tmp/deploy/index.min.json
-          [{"name":"Sources Françaises","pkg":"eu.kanade.tachiyomi.extension.fr.frenchsources","apk":"frenchsources.apk","lang":"fr","code":1,"version":"1.0.0","nsfw":0,"hasReadme":0,"hasChangelog":0,"sources":[{"name":"Mangas Origines","lang":"fr","id":1849204817491,"baseUrl":"https://mangas-origines.fr"},{"name":"Sushi-Scan","lang":"fr","id":2958102948192,"baseUrl":"https://sushiscan.net"},{"name":"Scan-Manga","lang":"fr","id":7827492817491,"baseUrl":"https://www.scan-manga.com"}]}]
+          [
+            {
+              "name": "Mangas Origines",
+              "pkg": "eu.kanade.tachiyomi.extension.fr.mangasorigines",
+              "apk": "mangasorigines.apk",
+              "lang": "fr",
+              "code": 1,
+              "version": "1.0.0",
+              "nsfw": 0,
+              "hasReadme": 0,
+              "hasChangelog": 0,
+              "sources": [
+                {
+                  "name": "Mangas Origines",
+                  "lang": "fr",
+                  "id": 1849204817491,
+                  "baseUrl": "https://mangas-origines.fr"
+                }
+              ]
+            },
+            {
+              "name": "Sushi-Scan",
+              "pkg": "eu.kanade.tachiyomi.extension.fr.sushiscan",
+              "apk": "sushiscan.apk",
+              "lang": "fr",
+              "code": 1,
+              "version": "1.0.0",
+              "nsfw": 0,
+              "hasReadme": 0,
+              "hasChangelog": 0,
+              "sources": [
+                {
+                  "name": "Sushi-Scan",
+                  "lang": "fr",
+                  "id": 2958102948192,
+                  "baseUrl": "https://sushiscan.net"
+                }
+              ]
+            },
+            {
+              "name": "Scan-Manga",
+              "pkg": "eu.kanade.tachiyomi.extension.fr.scanmanga",
+              "apk": "scanmanga.apk",
+              "lang": "fr",
+              "code": 1,
+              "version": "1.0.0",
+              "nsfw": 0,
+              "hasReadme": 0,
+              "hasChangelog": 0,
+              "sources": [
+                {
+                  "name": "Scan-Manga",
+                  "lang": "fr",
+                  "id": 7827492817491,
+                  "baseUrl": "https://www.scan-manga.com"
+                }
+              ]
+            }
+          ]
           EOF
 
       - name: Deploy to repo branch
@@ -83,5 +150,5 @@ jobs:
           cp /tmp/deploy/.nojekyll .
 
           git add -A
-          git commit -m "Update extension repository" || echo "No changes to commit"
+          git commit -m "Deploy 3 separate extension APKs" || echo "No changes to commit"
           git push --force origin repo
